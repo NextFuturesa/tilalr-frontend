@@ -160,14 +160,13 @@ export const AuthProvider = ({ children }) => {
       console.error('Login failed:', error);
       
       let errorMessage = 'Login failed';
+      // Prefer server-provided message (which will be localized if backend receives Accept-Language)
       if (error?.message) {
         errorMessage = error.message;
-      }
-      if (error?.status === 401 || error?.status === 404) {
-        // Generic message for bad credentials or missing account
+      } else if (error?.status === 401 || error?.status === 404) {
+        // Fallback generic message when server didn't provide one
         errorMessage = 'We couldn\'t sign you in. Please check your phone and password or register an account.';
-      }
-      if (error?.status === 422) {
+      } else if (error?.status === 422) {
         // Validation errors (bad input format)
         errorMessage = 'Invalid login details. Please check your input and try again.';
       }

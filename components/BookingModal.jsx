@@ -806,26 +806,8 @@ export default function BookingModal() {
           {step === 4 && (
             <div style={panelStyle}>
               <h4 style={{ margin: 0 }}>{t.payment}</h4>
-              <div style={paymentGridStyle}>
-                {[
-                  { value: "credit_card", label: isRTL ? "بطاقة ائتمانية" : "Credit Card" },
-                  { value: "mada", label: isRTL ? "مدى" : "Mada" },
-                  { value: "apple_pay", label: isRTL ? "أبل باي (قريباً)" : "Apple Pay (soon)", disabled: true },
-                ].map((m) => (
-                  <label key={m.value} style={paymentOptionStyle(paymentMethod === m.value, m.disabled)}>
-                    <input
-                      type="radio"
-                      name="payment_method"
-                      value={m.value}
-                      checked={paymentMethod === m.value}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      disabled={m.disabled}
-                    />
-                    {m.label}
-                  </label>
-                ))}
-              </div>
-              <p style={{ color: "#666", margin: "0.25rem 0 0", fontSize: "0.9rem" }}>{t.redirect}</p>
+              {/* Simplified payment step: no manual method selection. User will be redirected to the payment gateway. */}
+              <p style={{ color: "#666", margin: "0.25rem 0 0", fontSize: "0.9rem" }}>{isRTL ? 'سيتم توجيهك إلى بوابة الدفع لإتمام العملية' : 'You will be redirected to the payment gateway to complete your payment.'}</p>
             </div>
           )}
         </section>

@@ -18,6 +18,7 @@ function PaymentPageContent() {
 
   const [booking, setBooking] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('credit_card');
+  // Force Moyasar gateway — UI will not display other options so Moyasar can present automatic methods
   const [gateway, setGateway] = useState('moyasar');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
@@ -149,6 +150,7 @@ function PaymentPageContent() {
     try {
       const amount = booking.details?.amount || 1000;
       
+      console.log('Initiating payment with gateway:', gateway);
       const response = await paymentsAPI.initiate({
         booking_id: bookingId,
         amount: amount,
@@ -239,25 +241,8 @@ function PaymentPageContent() {
 
           {!moyasarConfig && (
             <form onSubmit={handlePayment}>
-              <div className="form-group">
-                <label>{t.paymentGateway}</label>
-                <select value={gateway} onChange={(e) => setGateway(e.target.value)} disabled={isProcessing}>
-                  <option value="moyasar">{t.moyasar} (mada, Visa, Mastercard, Apple Pay)</option>
-                  <option value="test">{t.testMode}</option>
-                </select>
-              </div>
-
-              {gateway === 'test' && (
-                <div className="test-info">
-                  <h3>🧪 {t.testCards}:</h3>
-                  <ul>
-                    <li>Visa: 4111 1111 1111 1111</li>
-                    <li>Mastercard: 5555 5555 5555 4444</li>
-                    <li>Mada: 4464 0400 0000 0007</li>
-                    <li>CVV: 123 | Expiry: Any future date</li>
-                  </ul>
-                </div>
-              )}
+              {/* Hidden gateway (always Moyasar) */}
+              <input type="hidden" name="gateway" value="moyasar" />
 
               {error && <div className="error-message">{error}</div>}
 
@@ -265,7 +250,7 @@ function PaymentPageContent() {
                 {isProcessing ? t.processing : `${t.pay} ${booking.details?.amount || 1000} ${t.sar}`}
               </button>
             </form>
-          )}
+          )} 
 
           {moyasarConfig && (
             <div className="moyasar-section">
