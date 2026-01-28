@@ -59,7 +59,7 @@ export default function AuthModal({ onAuthenticated }) {
       loadingLogin: isRTL ? "جاري تسجيل الدخول..." : "Logging in...",
       loadingRegister: isRTL ? "جاري إنشاء الحساب..." : "Creating account...",
       otpLabel: isRTL ? "رمز التحقق" : "Verification Code",
-      otpPlaceholder: isRTL ? "أدخل الرمز المكون من 4 أرقام" : "Enter 4-digit code",
+      otpPlaceholder: isRTL ? "أدخل الرمز المكون من 6 أرقام" : "Enter 6-digit code",
       verifyBtn: isRTL ? "تحقق" : "Verify",
       loadingVerify: isRTL ? "جاري التحقق..." : "Verifying...",
       resendOtp: isRTL ? "إعادة إرسال الرمز" : "Resend Code",
@@ -442,14 +442,14 @@ export default function AuthModal({ onAuthenticated }) {
               name="otp" 
               type="text" 
               value={otpCode} 
-              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder={t.otpPlaceholder}
-              maxLength={4}
+              maxLength={6}
               autoComplete="one-time-code"
               required 
             />
             
-            <button type="submit" style={primaryStyle} disabled={loading || otpCode.length !== 4}>
+            <button type="submit" style={primaryStyle} disabled={loading || otpCode.length !== 6}>
               {loading ? t.loadingVerify : t.verifyBtn}
             </button>
             
