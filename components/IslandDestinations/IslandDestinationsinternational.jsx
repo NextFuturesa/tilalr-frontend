@@ -550,10 +550,10 @@ export default function IslandDestinationsinternational({ lang }) {
                       role="button"
                       aria-label={`Go to slide ${index + 1} - ${getText(destination, 'title')}`}
                       style={{
-                        width: "clamp(280px, 36vw, 420px)",
+                        width: "clamp(380px, 36vw, 420px)",
                         cursor: "pointer",
                         outline: "none",
-                      }}
+                      }}S
                       onClick={() => goToSlide(index)}
                       onKeyDown={(e) => { if (e.key === 'Enter') goToSlide(index); }} 
                     >
