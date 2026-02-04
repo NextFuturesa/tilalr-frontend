@@ -101,6 +101,7 @@ export default function LocalIslandDetailPage() {
     (async () => {
       setLoading(true);
       setError(null);
+      setDestination(null);
       try {
         const apiEndpoint = `${API_URL.replace(/\/$/, '')}/island-destinations/local`;
         console.debug('[LocalIslandDetail] Fetching from:', apiEndpoint);
@@ -118,32 +119,38 @@ export default function LocalIslandDetailPage() {
         if (!json?.success) {
           throw new Error(json?.message || 'Failed to load destination');
         }
-        
+
         const list = Array.isArray(json.data) ? json.data : [];
-        console.debug('[LocalIslandDetail] Looking for slug:', slug, 'in list of:', list.map((d) => d.slug || d.id));
+        const slugList = list.map((d) => ({slug: d.slug, id: d.id, title: d.title_en}));
+        console.debug('[LocalIslandDetail] Looking for slug:', slug, 'in list of:', slugList);
         
         // Try to find by slug first, then by ID as fallback
-        const found = list.find((d) => 
-          d.slug === slug || 
-          d.slug === decodeURIComponent(slug) ||
-          d.id?.toString() === slug
-        );
+        const found = list.find((d) => {
+          const slugMatch = d.slug === slug || d.slug === decodeURIComponent(slug);
+          const idMatch = d.id?.toString() === slug;
+          if (slugMatch || idMatch) {
+            console.debug('[LocalIslandDetail] Found match:', {slug: d.slug, id: d.id, match: slugMatch ? 'slug' : 'id'});
+          }
+          return slugMatch || idMatch;
+        });
+        
+        setLoading(false);
         
         if (found) {
-          console.debug('[LocalIslandDetail] Found destination:', found.slug || found.id);
+          console.debug('[LocalIslandDetail] Destination loaded successfully:', found.slug || found.id);
           setDestination(found);
           setError(null);
         } else {
-          console.debug('[LocalIslandDetail] Destination not found - tried slug:', slug);
+          console.warn('[LocalIslandDetail] Destination not found. Requested slug:', slug, 'Available:', list.map(d => d.slug).join(', '));
           setDestination(null);
-          setError(lang === 'ar' ? 'الوجهة غير موجودة' : 'Destination not found');
+          setError(lang === 'ar' ? 'الوجهة غير موجودة. يرجى المحاولة مرة أخرى.' : 'Destination not found. Please try again.');
         }
       } catch (err) {
         if (err.name !== 'AbortError') {
           console.error('[LocalIslandDetail] fetch error:', err.message, err);
           setError(err.message || 'Error loading destination');
+          setDestination(null);
         }
-      } finally {
         setLoading(false);
       }
     })();
@@ -171,7 +178,8 @@ export default function LocalIslandDetailPage() {
     );
   }
 
-  if (error || !destination) {
+  if (!destination) {
+    const errorMsg = error || (lang === 'ar' ? 'الوجهة غير موجودة' : 'Destination not found');
     return (
       <div
         style={{
@@ -188,7 +196,7 @@ export default function LocalIslandDetailPage() {
       >
         <div>
           <p style={{ color: "#ff6b6b", fontSize: "1.1rem" }}>
-            {error || "Destination not found"}
+            {errorMsg}
           </p>
           <button
             onClick={() => router.back()}

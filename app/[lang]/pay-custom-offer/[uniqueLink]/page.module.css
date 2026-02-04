@@ -47,6 +47,31 @@
   text-align: center;
 }
 
+.tokenBox {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+}
+
+.tokenLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.tokenValue {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  font-family: 'Courier New', monospace;
+}
+
 .detailsSection {
   background: #f8fafc;
   padding: 1.25rem;
@@ -261,6 +286,34 @@
   font-style: italic;
   color: #64748b !important;
   font-size: 0.95rem !important;
+}
+
+.tokenReferenceBox {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  margin: 1.5rem 0;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+}
+
+.tokenRefLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  opacity: 0.95;
+}
+
+.tokenRefValue {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  font-family: 'Courier New', monospace;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
 }
 
 .confirmationText {

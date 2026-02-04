@@ -83,8 +83,10 @@ export default function IslandDestinationsinternational({ lang }) {
   // Build a full image URL for destination images
   const getImageUrl = (img) => {
     if (!img) return "/placeholder.png";
-    // If already a full URL or starts with /, return as-is
-    if (/^https?:\/\//.test(img) || img.startsWith("/")) return img;
+    // If already a full URL, return as-is
+    if (/^https?:\/\//.test(img)) return img;
+    // If starts with /, return as-is
+    if (img.startsWith("/")) return img;
     // Otherwise, prepend /
     return "/" + img;
   };
@@ -548,10 +550,10 @@ export default function IslandDestinationsinternational({ lang }) {
                       role="button"
                       aria-label={`Go to slide ${index + 1} - ${getText(destination, 'title')}`}
                       style={{
-                        width: "clamp(280px, 36vw, 420px)",
+                        width: "clamp(380px, 36vw, 420px)",
                         cursor: "pointer",
                         outline: "none",
-                      }}
+                      }}S
                       onClick={() => goToSlide(index)}
                       onKeyDown={(e) => { if (e.key === 'Enter') goToSlide(index); }} 
                     >

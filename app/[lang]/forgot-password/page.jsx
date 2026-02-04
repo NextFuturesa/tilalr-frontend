@@ -72,27 +72,14 @@ export default function ForgotPassword() {
     }
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone, code: otpCode, password: password, password_confirmation: passwordConfirmation })
-      });
-
-      const contentType = res.headers.get('content-type') || '';
-      let data;
-      if (contentType.includes('application/json')) {
-        data = await res.json();
-      } else {
-        const text = await res.text();
-        console.error('Non-JSON response from /api/auth/reset-password:', text);
-        throw new Error('Server error: ' + res.status);
-      }
-
-      if (!res.ok) throw new Error(data.message || 'Reset failed');
+      const data = await authAPI.resetPassword(phone, otpCode, password, passwordConfirmation);
+      
+      if (!data.success) throw new Error(data.message || 'Reset failed');
       toast.success(t.success);
       // Redirect to login page
       window.location.href = `/${lang}/login`;
     } catch (err) {
+      console.error('Reset password error:', err);
       toast.error(err.message || 'Reset failed');
     } finally {
       setLoading(false);

@@ -36,6 +36,15 @@ export default function ReservationModal() {
   const [runtimeError, setRuntimeError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
 
+  // Dynamic destinations data from API
+  const [availableCountries, setAvailableCountries] = useState([]);
+  const [availableCities, setAvailableCities] = useState([]);
+  const [availableDestinations, setAvailableDestinations] = useState([]);
+  const [destinationsLoading, setDestinationsLoading] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [selectedDestination, setSelectedDestination] = useState(null);
+
   // Saudi regions and local activities for local booking
   const saudiRegions = [
     { id: "west", name: { en: "Western Region", ar: "المنطقة الغربية" }, cities: ["Jeddah", "Mecca", "Medina", "Taif"] },
@@ -90,12 +99,19 @@ export default function ReservationModal() {
   };
 
   // International flight options
-  const flightOptions = [
-    { airline: "Emirates", from: "JED", to: "DXB", time: "06:00 AM", duration: "2h 30m", price: "$299", class: "Economy" },
-    { airline: "Turkish Airlines", from: "RUH", to: "IST", time: "10:00 AM", duration: "4h 15m", price: "$349", class: "Economy" },
-    { airline: "British Airways", from: "DMM", to: "LHR", time: "08:00 PM", duration: "6h 45m", price: "$599", class: "Business" },
-    { airline: "Qatar Airways", from: "MED", to: "BKK", time: "02:00 PM", duration: "7h 30m", price: "$449", class: "Economy" },
-  ];
+
+  // Helper to get tomorrow's date as YYYY-MM-DD for default date fields
+  const getDefaultDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Get default date once for use in all date fields
+  const defaultDate = getDefaultDate();
 
   const [formData, setFormData] = useState({
     // General Info (Both Local & International)
@@ -110,7 +126,7 @@ export default function ReservationModal() {
     region: "",
     city: "",
     localDestination: "", // Changed from "destination" to avoid conflict
-    date: "",
+    date: defaultDate,
     entertainment: [],
     folkloreShow: [],
     customEntertainment: "",
@@ -122,8 +138,8 @@ export default function ReservationModal() {
     customDinnerLocal: "",
 
     // International fields (existing)
-    checkInDate: "",
-    checkOutDate: "",
+    checkInDate: defaultDate,
+    checkOutDate: defaultDate,
     roomType: "standard",
     roomCount: 1,
     hotelAmenities: {
@@ -134,8 +150,8 @@ export default function ReservationModal() {
     },
     flightFrom: "JED",
     flightTo: "DXB",
-    departureDate: "",
-    returnDate: "",
+    departureDate: defaultDate,
+    returnDate: defaultDate,
     flightClass: "economy",
     passengers: 1,
     entertainmentInt: "",
@@ -169,6 +185,13 @@ useEffect(() => {
     setIsSubmitted(false);
       setRuntimeError(null);
       setSubmitError(null);
+      // Reset dynamic destination selection state
+      setSelectedCountry("");
+      setSelectedCity("");
+      setSelectedDestination(null);
+      setAvailableCountries([]);
+      setAvailableCities([]);
+      setAvailableDestinations([]);
       // Start with sensible defaults; allow opener to override
       let initialBookingType = destination?.preferredBookingType || "activity";
       let flightTo = "DXB";
@@ -212,7 +235,7 @@ useEffect(() => {
         region: "",
         city: "",
         localDestination: "",
-        date: "",
+        date: defaultDate,
         entertainment: [],
         folkloreShow: [],
         customEntertainment: "",
@@ -224,8 +247,8 @@ useEffect(() => {
         customDinnerLocal: "",
 
         // International fields
-        checkInDate: "",
-        checkOutDate: "",
+        checkInDate: defaultDate,
+        checkOutDate: defaultDate,
         roomType: "standard",
         roomCount: 1,
         hotelAmenities: {
@@ -236,8 +259,8 @@ useEffect(() => {
         },
         flightFrom: "JED",
         flightTo: flightTo,
-        departureDate: "",
-        returnDate: "",
+        departureDate: defaultDate,
+        returnDate: defaultDate,
         flightClass: "economy",
         passengers: 1,
         entertainmentInt: "",
@@ -293,6 +316,79 @@ useEffect(() => {
     };
   }, [isOpen]);
 
+  // Fetch available countries when modal opens for international booking
+  useEffect(() => {
+    if (isOpen && bookingLocation === "international") {
+      const fetchCountries = async () => {
+        try {
+          setDestinationsLoading(true);
+          const response = await fetch(`${API_URL}/international/destinations/countries`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && Array.isArray(data.data)) {
+              setAvailableCountries(data.data);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch countries:', err);
+        } finally {
+          setDestinationsLoading(false);
+        }
+      };
+      fetchCountries();
+    }
+  }, [isOpen, bookingLocation]);
+
+  // Fetch destinations when country is selected (skip city selection)
+  useEffect(() => {
+    if (selectedCountry && bookingLocation === "international") {
+      const fetchDestinations = async () => {
+        try {
+          setDestinationsLoading(true);
+          const countryName = availableCountries.find(c => c.id === selectedCountry)?.name_en || selectedCountry;
+          const response = await fetch(`${API_URL}/international/destinations/filter?country=${encodeURIComponent(countryName)}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && Array.isArray(data.data)) {
+              setAvailableDestinations(data.data);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch destinations:', err);
+        } finally {
+          setDestinationsLoading(false);
+        }
+      };
+      fetchDestinations();
+      setSelectedDestination(null);
+    }
+  }, [selectedCountry, bookingLocation, availableCountries]);
+
+  // When modal opens with a pre-selected destination, set the values
+  useEffect(() => {
+    if (isOpen && destination && bookingLocation === "international") {
+      // If destination has country/city info, pre-select them
+      if (destination.country_en || destination.destinationInfo?.country_en) {
+        const countryEn = destination.country_en || destination.destinationInfo?.country_en;
+        const countryId = countryEn ? countryEn.toLowerCase().replace(/\s+/g, '_') : '';
+        if (countryId) {
+          setSelectedCountry(countryId);
+        }
+      }
+      if (destination.city_en || destination.destinationInfo?.city_en) {
+        const cityEn = destination.city_en || destination.destinationInfo?.city_en;
+        const cityId = cityEn ? cityEn.toLowerCase().replace(/\s+/g, '_') : '';
+        if (cityId) {
+          setTimeout(() => setSelectedCity(cityId), 500); // Delay to let cities load
+        }
+      }
+      if (destination.id || destination.destinationInfo?.id) {
+        const destId = destination.id || destination.destinationInfo?.id;
+        setTimeout(() => setSelectedDestination(destId), 1000); // Delay to let destinations load
+      }
+    }
+  }, [isOpen, destination, bookingLocation]);
+
   const content = {
     en: {
       title: "Book Your Trip",
@@ -302,6 +398,13 @@ useEffect(() => {
       bookInternationally: "International Trip",
       selectRegion: "Select Region",
       selectCity: "Select City",
+      selectCountry: "Select Country",
+      selectDestination: "Select Destination",
+      chooseCountry: "Choose a country",
+      chooseCity: "Choose a city",
+      chooseDestination: "Choose a destination",
+      loadingDestinations: "Loading...",
+      noDestinationsFound: "No destinations found",
       name: "Name",
       date: "Date",
       localDestination: "Specific Location",
@@ -388,6 +491,13 @@ useEffect(() => {
       // Local booking specific
       selectRegion: "اختر المنطقة",
       selectCity: "اختر المدينة",
+      selectCountry: "اختر الدولة",
+      selectDestination: "اختر الوجهة",
+      chooseCountry: "اختر دولة",
+      chooseCity: "اختر مدينة",
+      chooseDestination: "اختر وجهة",
+      loadingDestinations: "جاري التحميل...",
+      noDestinationsFound: "لم يتم العثور على وجهات",
       name: "الاسم",
       date: "التاريخ",
       localDestination: "الموقع المحدد",
@@ -638,7 +748,32 @@ useEffect(() => {
         } : {
           source: "international",
           bookingType: formData.bookingType,
-          destination: destination?.title,
+          // Include dynamic destination selection data
+          destinationId: selectedDestination || destination?.id || null,
+          destination: (() => {
+            // Get selected destination name from dynamic selection or fall back to pre-selected
+            const selectedDest = selectedDestination 
+              ? availableDestinations.find(d => d.id === selectedDestination) 
+              : null;
+            if (selectedDest) {
+              return lang === 'ar' ? selectedDest.name_ar : selectedDest.name_en;
+            }
+            return destination?.title || null;
+          })(),
+          country: (() => {
+            const country = availableCountries.find(c => c.id === selectedCountry);
+            if (country) {
+              return lang === 'ar' ? country.name_ar : country.name_en;
+            }
+            return destination?.country_en || null;
+          })(),
+          city: (() => {
+            const city = availableCities.find(c => c.id === selectedCity);
+            if (city) {
+              return lang === 'ar' ? city.name_ar : city.name_en;
+            }
+            return destination?.city_en || null;
+          })(),
           numberOfGuests: formData.numberOfGuests,
           checkInDate: formData.checkInDate,
           checkOutDate: formData.checkOutDate,
@@ -663,7 +798,13 @@ useEffect(() => {
         };
 
         // Validate preferred date locally before sending
-        const preferredDate = bookingLocation === 'local' ? formData.date : (formData.checkInDate || formData.departureDate || null);
+        let preferredDate = bookingLocation === 'local' ? formData.date : (formData.checkInDate || formData.departureDate || null);
+        
+        // Fallback to default date if somehow empty
+        if (!preferredDate) {
+          preferredDate = defaultDate;
+        }
+        
         if (!preferredDate) {
           setSubmitError(lang === 'ar' ? 'الرجاء اختيار التاريخ المفضل' : 'Please select a preferred date.');
           setIsSubmitted(false);
@@ -698,9 +839,21 @@ useEffect(() => {
             name: bookingLocation === 'local' ? formData.name : (formData.name || destination?.title || ''),
             email: formData.userEmail,
             phone: formData.phoneNumber,
-            trip_type: null,
+            trip_type: formData.bookingType || null,
             trip_slug: destination?.slug || null,
-            trip_title: bookingLocation === 'local' ? (formData.localDestination || null) : (destination?.title || null),
+            trip_title: (() => {
+              if (bookingLocation === 'local') {
+                return formData.localDestination || null;
+              }
+              // Use dynamically selected destination name
+              const selectedDest = selectedDestination 
+                ? availableDestinations.find(d => d.id === selectedDestination) 
+                : null;
+              if (selectedDest) {
+                return lang === 'ar' ? selectedDest.name_ar : selectedDest.name_en;
+              }
+              return destination?.title || null;
+            })(),
             preferred_date: preferredDate,
             guests: Number(formData.numberOfGuests) || 1,
             notes: formData.specialRequests,
@@ -934,43 +1087,121 @@ useEffect(() => {
     </motion.div>
   );
 
-  const renderInternationalStep1 = () => (
-    <motion.div
-      key="international-step1"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="row g-3"
-      style={{ flex: 1 }}
-    >
-      <div className="col-12">
-        <h5 className="text-center mb-4" style={{ color: "#fff", fontSize: "1.2rem" }}>
-          {t.bookingTypeTitle}
-        </h5>
-      </div>
+  const renderInternationalStep1 = () => {
+    // Get the selected destination object for display
+    const selectedDest = selectedDestination 
+      ? availableDestinations.find(d => d.id === selectedDestination) 
+      : null;
 
-      <div className="col-12 d-flex justify-content-center">
-        <div className="col-md-6 px-0">
-          <button
-            type="button"
-            onClick={() => handleBookingTypeChange('activity')}
-            className={`btn w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3 ${bookingType === 'activity' ? 'btn-warning' : 'btn-outline-light'}`}
-            style={{
-              borderRadius: "15px",
-              height: "120px",
-              border: bookingType === 'activity' ? "2px solid #dfa528" : "1px solid rgba(255,255,255,0.3)",
-              background: bookingType === 'activity' ? "rgba(223, 165, 40, 0.1)" : "transparent",
-            }}
-          >
-            <Globe size={30} className="mb-2" />
-            <span className="fw-bold" style={{ fontSize: "0.9rem" }}>
-              {t.bookActivity}
-            </span>
-          </button>
+    return (
+      <motion.div
+        key="international-step1"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="row g-3"
+        style={{ flex: 1 }}
+      >
+        <div className="col-12">
+          <h5 className="text-center mb-4" style={{ color: "#fff", fontSize: "1.2rem" }}>
+            {t.bookingTypeTitle}
+          </h5>
         </div>
-      </div>
-    </motion.div>
-  );
+
+        {/* Booking Type Selection */}
+        <div className="col-12 d-flex justify-content-center mb-3">
+          <div className="col-md-6 px-0">
+            <button
+              type="button"
+              onClick={() => handleBookingTypeChange('activity')}
+              className={`btn w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3 ${bookingType === 'activity' ? 'btn-warning' : 'btn-outline-light'}`}
+              style={{
+                borderRadius: "15px",
+                height: "100px",
+                border: bookingType === 'activity' ? "2px solid #dfa528" : "1px solid rgba(255,255,255,0.3)",
+                background: bookingType === 'activity' ? "rgba(223, 165, 40, 0.1)" : "transparent",
+              }}
+            >
+              <Globe size={30} className="mb-2" />
+              <span className="fw-bold" style={{ fontSize: "0.9rem" }}>
+                {t.bookActivity}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic Destination Selection */}
+        <div className="col-12">
+          <div className="bg-dark bg-opacity-25 rounded-3 p-3">
+            <h6 className="text-warning mb-3 d-flex align-items-center gap-2">
+              <MapPin size={18} />
+              {lang === 'ar' ? 'اختر الوجهة' : 'Select Destination'}
+            </h6>
+
+            {/* Country Manual Input */}
+            <div className="mb-3">
+              <label className="form-label d-flex align-items-center gap-2 mb-1" style={{ color: "#fff" }}>
+                <Globe size={16} className="text-warning" />
+                <span className="fw-bold" style={{ fontSize: "0.95rem" }}>{lang === 'ar' ? 'الدولة' : 'Country'}</span>
+              </label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder={lang === 'ar' ? 'أدخل اسم الدولة' : 'Enter country name (e.g., Thailand)'}
+                value={selectedCountry}
+                onChange={(e) => setSelectedCountry(e.target.value)}
+                style={{
+                  background: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.3)",
+                  color: "#fff",
+                  borderRadius: "8px",
+                  padding: "10px 12px",
+                  fontSize: "0.9rem",
+                }}
+              />
+            </div>
+
+            {/* City Manual Input - shows when country is entered */}
+            {selectedCountry && (
+              <div className="mb-3">
+                <label className="form-label d-flex align-items-center gap-2 mb-1" style={{ color: "#fff" }}>
+                  <MapPin size={16} className="text-warning" />
+                  <span className="fw-bold" style={{ fontSize: "0.95rem" }}>{lang === 'ar' ? 'المدينة' : 'City'}</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder={lang === 'ar' ? 'أدخل اسم المدينة' : 'Enter city name (e.g., Bangkok)'}
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  style={{
+                    background: "rgba(255,255,255,0.1)",
+                    border: "1px solid rgba(255,255,255,0.3)",
+                    color: "#fff",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    fontSize: "0.9rem",
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Show pre-selected destination from booking button if not using manual input */}
+            {destination && !selectedCountry && !selectedCity && (
+              <div className="bg-dark bg-opacity-50 rounded-3 p-3 mt-2">
+                <h6 className="mb-1" style={{ color: "#fff", fontSize: "0.95rem" }}>
+                  {destination?.title}
+                </h6>
+                <p className="mb-0 small" style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.8rem" }}>
+                  {destination?.description}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
 
   // Step 2 Renderer
   const renderStep2 = () => {

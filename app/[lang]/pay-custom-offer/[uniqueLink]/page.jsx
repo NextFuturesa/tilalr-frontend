@@ -130,6 +130,7 @@ export default function CustomPaymentPage() {
         description: offerData.description || 'Custom Payment',
         publishable_api_key: moyasarKey,
         callback_url: callbackUrl,
+        test_mode: true,
         metadata: {
           unique_link: uniqueLink,
           customer_name: offerData.customer_name,
@@ -142,20 +143,31 @@ export default function CustomPaymentPage() {
         },
         on_initiating: function() {
           console.log('Payment initiating...');
+          return true;
         },
         on_completed: function(payment) {
           console.log('Payment completed:', payment);
-          if (payment.status === 'paid') {
-            updatePaymentStatus('success', payment.id);
-          } else {
-            setPaymentStatus('failed');
-            setError('Payment was not successful');
+          try {
+            if (payment.status === 'paid') {
+              updatePaymentStatus('success', payment.id);
+            } else {
+              setPaymentStatus('failed');
+              setError('Payment was not successful');
+            }
+          } catch (err) {
+            console.error('Error in on_completed handler:', err);
           }
+          return true;
         },
         on_failure: function(error) {
           console.error('Payment failed:', error);
-          setPaymentStatus('failed');
-          setError(error?.message || 'Payment failed. Please try again.');
+          try {
+            setPaymentStatus('failed');
+            setError(error?.message || 'Payment failed. Please try again.');
+          } catch (err) {
+            console.error('Error in on_failure handler:', err);
+          }
+          return true;
         },
       });
 
@@ -231,6 +243,15 @@ export default function CustomPaymentPage() {
           <h2>Payment Successful!</h2>
           <p>Thank you for your payment of <strong>{offerData?.amount} SAR</strong></p>
           <p className={styles.successDescription}>{offerData?.description}</p>
+          
+          {/* Token Number */}
+          {offerData?.token_number && (
+            <div className={styles.tokenReferenceBox}>
+              <span className={styles.tokenRefLabel}>Payment Reference Number</span>
+              <span className={styles.tokenRefValue}>{offerData.token_number}</span>
+            </div>
+          )}
+          
           <p className={styles.confirmationText}>
             A confirmation email has been sent to your email address.
           </p>
@@ -291,6 +312,14 @@ export default function CustomPaymentPage() {
 
           <div className={styles.offerDetails}>
             <h2 className={styles.title}>Complete Your Payment</h2>
+
+            {/* Token Number */}
+            {offerData?.token_number && (
+              <div className={styles.tokenBox}>
+                <span className={styles.tokenLabel}>Payment Reference</span>
+                <span className={styles.tokenValue}>{offerData.token_number}</span>
+              </div>
+            )}
 
             {/* Offer Information */}
             <div className={styles.detailsSection}>

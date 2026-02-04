@@ -43,7 +43,7 @@ export default function OffersPage({ lang }) {
   const isRTL = lang === "ar";
   
   // API base URL
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://admin.tilalr.com/api';
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
 
   // Return a short preview (first paragraph or up to max chars)
   const getSummary = (text, maxChars = 220) => {

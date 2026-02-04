@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -25,6 +25,12 @@ export default function IslandDestinationslocal({ lang }) {
   const [destinations, setDestinations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Touch/swipe refs for mobile
+  const touchStartRef = useRef(null);
+  const touchDeltaRef = useRef(0);
+  // Responsive container height
+  const [containerHeight, setContainerHeight] = useState('650px');
 
   // Respect reduced motion preference
   const prefersReducedMotion = (typeof window !== "undefined" && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) || false;
@@ -126,10 +132,13 @@ export default function IslandDestinationslocal({ lang }) {
         console.debug('[IslandDestinationsLocal] Loaded destinations count:', data.length);
         
         setDestinations(
-          data.map((d) => ({
-            ...d,
-            image: d.image || '/placeholder.png',
-          }))
+          data.map((d) => {
+            console.debug('[IslandDestinationsLocal] Destination loaded:', {id: d.id, slug: d.slug, title: d.title_en});
+            return {
+              ...d,
+              image: d.image || '/placeholder.png',
+            };
+          })
         );
         setLoading(false);
       } catch (err) {
@@ -193,6 +202,20 @@ export default function IslandDestinationslocal({ lang }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [destinations.length]);
+
+  // Responsive height based on viewport
+  useEffect(() => {
+    const updateHeight = () => {
+      if (typeof window === 'undefined') return;
+      const w = window.innerWidth;
+      if (w < 480) setContainerHeight('520px');
+      else if (w < 768) setContainerHeight('580px');
+      else setContainerHeight('650px');
+    };
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
 
   // Show loading state
   if (loading) {
@@ -272,6 +295,30 @@ export default function IslandDestinationslocal({ lang }) {
     const total = displayDestinations.length;
     if (total === 0) return;
     setCurrentSlide(Math.max(0, Math.min(index, total - 1)));
+  };
+
+  // Touch handlers for swipe gestures (mobile)
+  const handleTouchStart = (e) => {
+    touchStartRef.current = e.touches ? e.touches[0].clientX : null;
+    touchDeltaRef.current = 0;
+  };
+
+  const handleTouchMove = (e) => {
+    if (!touchStartRef.current) return;
+    const currentX = e.touches ? e.touches[0].clientX : null;
+    touchDeltaRef.current = currentX - touchStartRef.current;
+  };
+
+  const handleTouchEnd = () => {
+    const delta = touchDeltaRef.current || 0;
+    const threshold = 50; // swipe threshold in px
+    if (delta > threshold) {
+      prevSlide();
+    } else if (delta < -threshold) {
+      nextSlide();
+    }
+    touchStartRef.current = null;
+    touchDeltaRef.current = 0;
   };
 
   // Helper: normalize packages for a destination
@@ -361,7 +408,8 @@ export default function IslandDestinationslocal({ lang }) {
   };
 
   const handleViewDetails = (destination) => {
-    const slug = destination.slug || "";
+    // Fallback to id if slug is not available
+    const slug = destination.slug || destination.id || "";
     const path = `/${currentLang}/local-islands/${slug}`;
     console.debug("[IslandDestinationsLocal] view details (local) ->", {
       slug,
@@ -369,7 +417,11 @@ export default function IslandDestinationslocal({ lang }) {
       destination,
     });
 
-    if (slug) router.push(path);
+    if (slug) {
+      router.push(path);
+    } else {
+      console.warn("[IslandDestinationsLocal] No slug or ID found for destination:", destination);
+    }
   };
 
   const renderStars = (rating) => {
@@ -459,7 +511,7 @@ export default function IslandDestinationslocal({ lang }) {
   return (
     <>
       <section
-        className="position-relative py-5 overflow-hidden"
+        className="position-relative overflow-hidden"
         style={{
           background:
             "linear-gradient(135deg, #8A7779 0%, #6e6768ff 50%, #5a4f50 100%)",
@@ -468,6 +520,7 @@ export default function IslandDestinationslocal({ lang }) {
           minHeight: "100vh",
           display: "flex",
           alignItems: "center",
+          padding: "clamp(1.5rem, 3vw, 3rem) 0",
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -482,7 +535,7 @@ export default function IslandDestinationslocal({ lang }) {
         />
         <div className="container position-relative z-2">
           {/* Section Header */}
-          <div className="text-center mb-5">
+          <div className="text-center" style={{ marginBottom: "clamp(1.5rem, 4vw, 2.5rem)" }}>
             <motion.h2
               className="display-4 fw-bold mb-3"
               initial={{ opacity: 0, y: 30 }}
@@ -496,7 +549,7 @@ export default function IslandDestinationslocal({ lang }) {
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
                 textShadow: "0 4px 8px rgba(0,0,0,0.2)",
-                fontSize: "1.75rem",
+                fontSize: "clamp(1.5rem, 6vw, 2.5rem)",
               }}
             >
               {t.title}
@@ -512,14 +565,14 @@ export default function IslandDestinationslocal({ lang }) {
                 maxWidth: "600px",
                 margin: "0 auto",
                 color: "rgba(255,255,255,0.9)",
-                fontSize: "1.2rem",
+                fontSize: "clamp(0.95rem, 3vw, 1.2rem)",
               }}
             >
               {t.subtitle}
             </motion.p>
           </div>
           {/* Slider Container */}
-          <div className="position-relative" style={{ height: "650px" }}>
+          <div className="position-relative" style={{ height: containerHeight }} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
             {/* Navigation Arrows */}
             <motion.button
               onClick={prevSlide}
@@ -536,8 +589,8 @@ export default function IslandDestinationslocal({ lang }) {
                 [lang === "ar" ? "right" : "left"]: "30px",
                 transform: "translateY(-50%)",
                 zIndex: 40,
-                width: "60px",
-                height: "60px",
+                width: "clamp(44px, 8vw, 60px)",
+                height: "clamp(44px, 8vw, 60px)",
                 borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
@@ -548,6 +601,8 @@ export default function IslandDestinationslocal({ lang }) {
                 color: "white",
                 boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
                 outline: 'none',
+                touchAction: 'manipulation',
+                padding: 0,
               }}
             >
               {lang === "ar" ? (
@@ -572,8 +627,8 @@ export default function IslandDestinationslocal({ lang }) {
                 [lang === "ar" ? "left" : "right"]: "30px",
                 transform: "translateY(-50%)",
                 zIndex: 40,
-                width: "60px",
-                height: "60px",
+                width: "clamp(44px, 8vw, 60px)",
+                height: "clamp(44px, 8vw, 60px)",
                 borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
@@ -584,6 +639,8 @@ export default function IslandDestinationslocal({ lang }) {
                 color: "white",
                 boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
                 outline: 'none',
+                touchAction: 'manipulation',
+                padding: 0,
               }}
             >
               {lang === "ar" ? (
@@ -625,7 +682,7 @@ export default function IslandDestinationslocal({ lang }) {
                       role="button"
                       aria-label={`Go to slide ${index + 1} - ${getText(destination, 'title')}`}
                       style={{
-                        width: "clamp(280px, 36vw, 420px)",
+                        width: "clamp(380px, 36vw, 420px)",
                         cursor: "pointer",
                         outline: "none",
                       }}
@@ -657,7 +714,7 @@ export default function IslandDestinationslocal({ lang }) {
                           }}
                         />
                         <div className="position-absolute bottom-0 start-0 end-0 p-4 text-white d-flex justify-content-center" style={{ background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.45))' }}>
-                          <div className="d-flex gap-3 align-items-center"> 
+                          <div className="d-flex flex-wrap gap-2 align-items-center justify-content-center"> 
                         {/* CTA overlay - only buttons (image remains as background) */}
                             {isActive && pkgOptions && pkgOptions.length > 1 && (
                               <select
@@ -689,15 +746,19 @@ export default function IslandDestinationslocal({ lang }) {
                                 }
                                 handleBookNow(destination, pkg);
                               }}
-                              className="btn btn-warning px-4 fw-bold"
+                              className="btn btn-warning fw-bold"
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                               style={{
                                 borderRadius: "25px",
-                                fontSize: "0.9rem",
+                                fontSize: "clamp(0.8rem, 2vw, 0.95rem)",
                                 background: "#EFC8AE",
                                 color: "#000",
                                 border: "none",
+                                minWidth: "clamp(100px, 25vw, 120px)",
+                                padding: "clamp(8px, 2vw, 12px) clamp(12px, 3vw, 18px)",
+                                touchAction: 'manipulation',
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               {t.bookNow}
@@ -708,20 +769,24 @@ export default function IslandDestinationslocal({ lang }) {
                                 e.stopPropagation();
                                 handleWhatsApp(destination);
                               }}
-                              className="btn d-flex align-items-center gap-2 px-3 fw-bold"
+                              className="btn d-flex align-items-center gap-1 fw-bold"
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                               style={{
                                 borderRadius: "25px",
-                                fontSize: "0.9rem",
+                                fontSize: "clamp(0.8rem, 2vw, 0.95rem)",
                                 background: "#25D366",
                                 color: "#fff",
                                 border: "none",
+                                minWidth: "clamp(100px, 25vw, 120px)",
+                                padding: "clamp(8px, 2vw, 12px) clamp(10px, 2vw, 16px)",
+                                touchAction: 'manipulation',
+                                whiteSpace: 'nowrap',
                               }}
                               title={lang === "ar" ? "واتساب" : "WhatsApp"}
                             >
-                              <FaWhatsapp style={{ fontSize: "18px" }} />
-                              <span style={{ fontSize: "0.9rem" }}>
+                              <FaWhatsapp style={{ fontSize: "clamp(14px, 3vw, 18px)" }} />
+                              <span style={{ fontSize: "clamp(0.8rem, 2vw, 0.95rem)" }}>
                                 {lang === "ar" ? "واتساب" : "WhatsApp"}
                               </span>
                             </motion.button>
@@ -731,10 +796,12 @@ export default function IslandDestinationslocal({ lang }) {
                                 e.stopPropagation();
                                 handleViewDetails(destination);
                               }}
-                              className="btn btn-outline-light px-3"
+                              className="btn btn-outline-light"
                               style={{
                                 borderRadius: "25px",
-                                fontSize: "0.9rem",
+                                fontSize: "clamp(0.8rem, 2vw, 0.9rem)",
+                                padding: "clamp(8px, 2vw, 12px) clamp(12px, 3vw, 18px)",
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               {t.viewDetails}

@@ -106,6 +106,7 @@ function PaymentPageContent() {
         
         window.Moyasar.init({
           ...configToUse,
+          test_mode: true,
           on_completed: function(payment) {
             console.log('Moyasar payment completed:', payment);
             setPaymentSuccess(true);

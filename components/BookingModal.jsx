@@ -25,8 +25,14 @@ export default function BookingModal() {
 
   const [step, setStep] = useState(1);
   const [bookingId, setBookingId] = useState(null);
+  // Initialize date with tomorrow's date (not today, as per validation 'after_or_equal:yesterday')
+  const getDefaultDate = () => {
+    const today = new Date();
+    today.setDate(today.getDate() + 1);
+    return today.toISOString().split("T")[0];
+  };
   const [form, setForm] = useState({
-    date: "",
+    date: getDefaultDate(),
     guests: 1,
     notes: "",
     name: "",
